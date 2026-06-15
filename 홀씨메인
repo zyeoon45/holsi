@@ -1,0 +1,1237 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>민들레 — 감정을 묻어두는 곳</title>
+<style>
+  :root {
+    --night: #080c14;
+    --deep: #0e1520;
+    --surface: #141d2e;
+    --card: #1a2540;
+    --border: rgba(100,140,220,0.12);
+    --border-soft: rgba(255,255,255,0.07);
+    --text-primary: rgba(225,235,255,0.92);
+    --text-secondary: rgba(160,185,230,0.65);
+    --text-hint: rgba(120,150,200,0.4);
+    --accent: #6ec6a0;
+    --accent-dim: rgba(110,198,160,0.15);
+    --accent-glow: rgba(110,198,160,0.08);
+    --gold: #e8c96a;
+    --gold-dim: rgba(232,201,106,0.1);
+    --danger: #e87070;
+    --font: 'Helvetica Neue', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    width: 100%; height: 100%;
+    background: var(--night);
+    color: var(--text-primary);
+    font-family: var(--font);
+    overflow: hidden;
+    position: fixed;
+  }
+
+  /* ── SCREEN SYSTEM ── */
+  .screen {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.4s ease;
+    overflow: hidden;
+  }
+  .screen.active { opacity: 1; pointer-events: all; }
+  .screen.slide-up { transform: translateY(30px); transition: opacity 0.4s ease, transform 0.4s ease; }
+  .screen.slide-up.active { transform: translateY(0); }
+
+  /* ── STATUS BAR SPACER ── */
+  .safe-top { height: env(safe-area-inset-top, 44px); background: transparent; flex-shrink: 0; }
+  .safe-bottom { height: env(safe-area-inset-bottom, 20px); flex-shrink: 0; }
+
+  /* ── SHARED ── */
+  .nav-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 20px; height: 52px; flex-shrink: 0;
+  }
+  .nav-title { font-size: 16px; font-weight: 600; letter-spacing: -0.01em; }
+  .nav-btn {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: var(--surface); border: 0.5px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font-size: 18px; color: var(--text-secondary);
+    transition: background 0.2s;
+  }
+  .nav-btn:active { background: var(--card); }
+
+  /* ── SCREEN 1: HOME ── */
+  #screen-home {
+    background: linear-gradient(170deg, #080c14 0%, #0a1020 40%, #0d1828 100%);
+  }
+
+  #home-header {
+    padding: 16px 24px 0;
+    flex-shrink: 0;
+  }
+  .home-location {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 12px; color: var(--text-hint); letter-spacing: 0.04em;
+    margin-bottom: 4px;
+  }
+  .home-location::before { content: "📍"; font-size: 11px; }
+  .home-greeting { font-size: 22px; font-weight: 700; letter-spacing: -0.03em; line-height: 1.2; }
+  .home-greeting span { color: var(--accent); }
+
+  #home-scroll {
+    flex: 1; overflow-y: auto; padding: 20px 20px 0;
+    scrollbar-width: none;
+  }
+  #home-scroll::-webkit-scrollbar { display: none; }
+
+  /* nearby discovered badge */
+  .nearby-banner {
+    background: var(--accent-dim);
+    border: 0.5px solid rgba(110,198,160,0.25);
+    border-radius: 14px;
+    padding: 14px 16px;
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 20px;
+    cursor: pointer;
+  }
+  .nearby-icon { font-size: 26px; flex-shrink: 0; }
+  .nearby-text { flex: 1; }
+  .nearby-text strong { font-size: 13px; color: var(--accent); display: block; }
+  .nearby-text span { font-size: 11px; color: var(--text-secondary); }
+  .nearby-arrow { font-size: 16px; color: var(--accent); opacity: 0.7; }
+
+  /* recent records */
+  .section-label {
+    font-size: 11px; letter-spacing: 0.1em; color: var(--text-hint);
+    text-transform: uppercase; margin-bottom: 12px;
+  }
+  .record-card {
+    background: var(--card);
+    border: 0.5px solid var(--border);
+    border-radius: 16px;
+    padding: 16px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: border-color 0.2s;
+  }
+  .record-card:active { border-color: rgba(110,198,160,0.3); }
+  .record-card-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 8px;
+  }
+  .record-place { font-size: 11px; color: var(--accent); display: flex; align-items: center; gap: 4px; }
+  .record-date { font-size: 11px; color: var(--text-hint); }
+  .record-content { font-size: 13px; line-height: 1.6; color: var(--text-secondary); }
+  .record-tags { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+  .tag {
+    font-size: 10px; padding: 3px 8px; border-radius: 20px;
+    background: var(--surface); border: 0.5px solid var(--border);
+    color: var(--text-hint);
+  }
+  .tag.emotion { background: var(--gold-dim); color: var(--gold); border-color: rgba(232,201,106,0.2); }
+
+  /* FAB */
+  #fab {
+    position: absolute; bottom: calc(env(safe-area-inset-bottom, 20px) + 20px); right: 24px;
+    width: 60px; height: 60px; border-radius: 50%;
+    background: var(--accent);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 28px; cursor: pointer;
+    box-shadow: 0 4px 24px rgba(110,198,160,0.35);
+    transition: transform 0.15s, box-shadow 0.15s;
+    z-index: 10;
+  }
+  #fab:active { transform: scale(0.93); box-shadow: 0 2px 12px rgba(110,198,160,0.2); }
+
+  /* ── SCREEN 2: WRITE ── */
+  #screen-write {
+    background: var(--deep);
+  }
+
+  .write-mode-tabs {
+    display: flex; gap: 0; padding: 0 20px; margin-bottom: 16px; flex-shrink: 0;
+    border-bottom: 0.5px solid var(--border-soft);
+  }
+  .write-tab {
+    flex: 1; padding: 12px 0; text-align: center;
+    font-size: 13px; color: var(--text-hint); cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: color 0.2s, border-color 0.2s;
+  }
+  .write-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  #write-body { flex: 1; overflow-y: auto; padding: 0 20px; scrollbar-width: none; }
+  #write-body::-webkit-scrollbar { display: none; }
+
+  /* text mode */
+  #mode-text { display: flex; flex-direction: column; gap: 12px; padding-bottom: 20px; }
+
+  .input-label { font-size: 11px; color: var(--text-hint); letter-spacing: 0.08em; text-transform: uppercase; }
+  .text-input {
+    background: var(--card); border: 0.5px solid var(--border);
+    border-radius: 12px; padding: 14px 16px;
+    color: var(--text-primary); font-family: var(--font); font-size: 14px;
+    width: 100%; resize: none; outline: none;
+    transition: border-color 0.2s;
+  }
+  .text-input::placeholder { color: var(--text-hint); }
+  .text-input:focus { border-color: rgba(110,198,160,0.35); }
+  #emotion-input { height: 130px; line-height: 1.7; }
+
+  .emotion-tags-row {
+    display: flex; gap: 8px; flex-wrap: wrap; padding: 4px 0;
+  }
+  .etag {
+    padding: 6px 14px; border-radius: 20px;
+    font-size: 12px; cursor: pointer;
+    background: var(--surface); border: 0.5px solid var(--border);
+    color: var(--text-secondary);
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+  }
+  .etag.selected { background: var(--gold-dim); border-color: rgba(232,201,106,0.3); color: var(--gold); }
+
+  .privacy-row {
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--card); border: 0.5px solid var(--border);
+    border-radius: 12px; padding: 14px 16px;
+  }
+  .privacy-label { font-size: 13px; color: var(--text-secondary); }
+  .toggle-wrap { display: flex; gap: 0; background: var(--surface); border-radius: 20px; padding: 2px; }
+  .toggle-opt {
+    padding: 5px 14px; border-radius: 16px; font-size: 11px;
+    color: var(--text-hint); cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+  }
+  .toggle-opt.on { background: var(--card); color: var(--text-primary); border: 0.5px solid var(--border); }
+
+  /* voice mode */
+  #mode-voice { display: none; flex-direction: column; align-items: center; padding: 30px 0 20px; gap: 24px; }
+  #mode-voice.active { display: flex; }
+  #mode-text.active { display: flex; }
+
+  .voice-circle {
+    width: 120px; height: 120px; border-radius: 50%;
+    background: var(--surface); border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 40px; cursor: pointer;
+    position: relative;
+    transition: border-color 0.3s;
+  }
+  .voice-circle.recording {
+    border-color: rgba(232,80,80,0.6);
+    animation: voice-pulse 1.2s ease-in-out infinite;
+  }
+  @keyframes voice-pulse {
+    0%,100% { box-shadow: 0 0 0 0 rgba(232,80,80,0.2); }
+    50% { box-shadow: 0 0 0 16px rgba(232,80,80,0); }
+  }
+  .voice-status { font-size: 14px; color: var(--text-secondary); }
+  .voice-time { font-size: 28px; font-weight: 700; color: var(--text-primary); letter-spacing: 0.04em; }
+  .voice-wave { display: flex; align-items: center; gap: 3px; height: 32px; }
+  .wave-bar {
+    width: 3px; border-radius: 2px; background: var(--accent);
+    animation: wave-anim 0.8s ease-in-out infinite;
+    opacity: 0;
+  }
+  .voice-circle.recording ~ .voice-wave .wave-bar { opacity: 1; }
+  @keyframes wave-anim {
+    0%,100% { height: 4px; }
+    50% { height: 24px; }
+  }
+  .wave-bar:nth-child(1) { animation-delay: 0s; }
+  .wave-bar:nth-child(2) { animation-delay: 0.1s; }
+  .wave-bar:nth-child(3) { animation-delay: 0.2s; }
+  .wave-bar:nth-child(4) { animation-delay: 0.1s; }
+  .wave-bar:nth-child(5) { animation-delay: 0s; }
+
+  .voice-controls { display: flex; gap: 16px; }
+  .voice-btn {
+    padding: 9px 20px; border-radius: 20px;
+    font-size: 13px; cursor: pointer;
+    border: 0.5px solid var(--border); color: var(--text-secondary);
+    background: var(--surface);
+    transition: background 0.2s, border-color 0.2s;
+  }
+  .voice-btn:active { background: var(--card); }
+  .voice-btn.danger { border-color: rgba(232,80,80,0.3); color: var(--danger); }
+
+  /* location bar */
+  .location-bar {
+    margin: 0 20px; padding: 12px 16px;
+    background: var(--card); border: 0.5px solid var(--border); border-radius: 12px;
+    display: flex; align-items: center; gap: 10px;
+    flex-shrink: 0;
+  }
+  .loc-icon { font-size: 16px; }
+  .loc-name { font-size: 13px; color: var(--text-secondary); flex: 1; }
+  .loc-edit { font-size: 11px; color: var(--accent); cursor: pointer; }
+
+  /* submit btn */
+  .submit-bar {
+    padding: 12px 20px; flex-shrink: 0;
+    border-top: 0.5px solid var(--border-soft);
+  }
+  .submit-btn {
+    width: 100%; padding: 16px;
+    background: var(--accent); border: none; border-radius: 14px;
+    font-size: 15px; font-weight: 600; color: #0a1a12;
+    cursor: pointer; transition: opacity 0.2s, transform 0.15s;
+    letter-spacing: -0.01em;
+  }
+  .submit-btn:active { opacity: 0.85; transform: scale(0.98); }
+
+  /* ── SCREEN 3: DANDELION BLOW ── */
+  #screen-blow {
+    background: linear-gradient(170deg, #060a10 0%, #0a1018 50%, #0d1525 100%);
+  }
+
+  #blow-canvas-wrap {
+    flex: 1;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    position: relative;
+    padding: 20px;
+  }
+
+  #blow-status {
+    font-size: 13px; color: var(--text-secondary);
+    letter-spacing: 0.04em; min-height: 20px;
+    margin-bottom: 20px; text-align: center;
+  }
+
+  canvas#blow-canvas {
+    border-radius: 20px;
+  }
+
+  #mic-level-wrap {
+    width: 120px; height: 3px;
+    background: rgba(255,255,255,0.08); border-radius: 2px;
+    margin-top: 20px; overflow: hidden;
+  }
+  #mic-level-fill {
+    height: 100%; width: 0%;
+    background: linear-gradient(90deg, var(--accent), #60a5fa);
+    border-radius: 2px;
+    transition: width 0.05s;
+  }
+
+  #blow-mic-btn {
+    margin-top: 20px;
+    display: flex; align-items: center; gap: 8px;
+    padding: 12px 24px; border-radius: 30px;
+    background: rgba(110,198,160,0.12);
+    border: 1px solid rgba(110,198,160,0.3);
+    color: var(--accent); font-size: 14px; cursor: pointer;
+    transition: background 0.2s;
+  }
+  #blow-mic-btn.on {
+    background: rgba(110,198,160,0.2);
+    border-color: rgba(110,198,160,0.5);
+    animation: mic-glow 1.5s ease-in-out infinite;
+  }
+  @keyframes mic-glow {
+    0%,100% { box-shadow: 0 0 0 0 rgba(110,198,160,0.2); }
+    50% { box-shadow: 0 0 0 8px rgba(110,198,160,0); }
+  }
+  #blow-mic-icon { font-size: 18px; }
+
+  #blow-alt-btn {
+    margin-top: 12px;
+    font-size: 12px; color: var(--text-hint); cursor: pointer;
+    padding: 8px 16px; border-radius: 20px;
+    background: transparent; border: 0.5px solid var(--border-soft);
+    transition: color 0.2s, border-color 0.2s;
+  }
+  #blow-alt-btn:active { color: var(--text-secondary); border-color: var(--border); }
+
+  /* complete overlay */
+  #blow-complete {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.8s ease;
+    padding: 40px;
+    text-align: center;
+  }
+  #blow-complete.show { opacity: 1; pointer-events: all; }
+  .complete-icon { font-size: 52px; margin-bottom: 20px; }
+  .complete-title { font-size: 22px; font-weight: 700; letter-spacing: -0.03em; margin-bottom: 8px; }
+  .complete-sub { font-size: 14px; color: var(--text-secondary); line-height: 1.6; margin-bottom: 32px; }
+  .complete-actions { display: flex; gap: 10px; }
+  .cta-btn {
+    padding: 12px 20px; border-radius: 12px; font-size: 13px; cursor: pointer;
+    border: 0.5px solid var(--border); color: var(--text-secondary);
+    background: var(--card); transition: background 0.2s;
+  }
+  .cta-btn.primary {
+    background: var(--accent); color: #0a1a12; font-weight: 600;
+    border-color: transparent;
+  }
+  .cta-btn:active { opacity: 0.8; }
+
+  /* ── SCREEN 4: DISCOVER (근처 기록) ── */
+  #screen-discover {
+    background: var(--deep);
+  }
+
+  .map-preview {
+    height: 200px; flex-shrink: 0;
+    background: var(--surface);
+    border-bottom: 0.5px solid var(--border);
+    position: relative; overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .map-bg {
+    position: absolute; inset: 0;
+    background:
+      repeating-linear-gradient(0deg, transparent, transparent 29px, rgba(100,140,220,0.04) 30px),
+      repeating-linear-gradient(90deg, transparent, transparent 29px, rgba(100,140,220,0.04) 30px);
+  }
+  .map-dot {
+    position: absolute; width: 10px; height: 10px; border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 0 4px rgba(110,198,160,0.2), 0 0 0 8px rgba(110,198,160,0.08);
+  }
+  .map-dot-other {
+    position: absolute; width: 8px; height: 8px; border-radius: 50%;
+    background: var(--gold);
+    box-shadow: 0 0 0 3px rgba(232,201,106,0.15);
+  }
+  .map-you-label {
+    position: absolute; font-size: 9px; color: var(--accent);
+    letter-spacing: 0.05em; white-space: nowrap;
+    bottom: calc(50% + 14px);
+  }
+
+  .discover-list { flex: 1; overflow-y: auto; padding: 16px 20px; scrollbar-width: none; }
+  .discover-list::-webkit-scrollbar { display: none; }
+
+  .discover-card {
+    background: var(--card); border: 0.5px solid var(--border); border-radius: 16px;
+    padding: 16px; margin-bottom: 10px; cursor: pointer;
+    transition: border-color 0.2s;
+  }
+  .discover-card:active { border-color: rgba(232,201,106,0.3); }
+  .discover-card-header {
+    display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;
+  }
+  .anon-name { font-size: 12px; color: var(--gold); display: flex; align-items: center; gap: 5px; }
+  .anon-name::before { content: "🌿"; font-size: 11px; }
+  .discover-dist { font-size: 11px; color: var(--text-hint); }
+  .discover-content { font-size: 13px; color: var(--text-secondary); line-height: 1.6; }
+  .discover-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; }
+  .discover-time { font-size: 11px; color: var(--text-hint); }
+  .discover-report { font-size: 11px; color: var(--text-hint); padding: 4px 8px; }
+
+  /* ── SCREEN 5: MY RECORDS ── */
+  #screen-myrecords {
+    background: var(--deep);
+  }
+
+  .my-records-list { flex: 1; overflow-y: auto; padding: 16px 20px; scrollbar-width: none; }
+  .my-records-list::-webkit-scrollbar { display: none; }
+
+  .my-record-item {
+    display: flex; gap: 14px; padding: 14px 0;
+    border-bottom: 0.5px solid var(--border-soft);
+    cursor: pointer;
+  }
+  .mri-left { display: flex; flex-direction: column; align-items: center; gap: 4px; flex-shrink: 0; }
+  .mri-date-num { font-size: 22px; font-weight: 700; color: var(--text-primary); line-height: 1; }
+  .mri-date-mon { font-size: 10px; color: var(--text-hint); letter-spacing: 0.06em; }
+  .mri-right { flex: 1; }
+  .mri-place { font-size: 11px; color: var(--accent); margin-bottom: 4px; display: flex; align-items: center; gap: 4px; }
+  .mri-content { font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
+  .mri-type-badge {
+    display: inline-block; font-size: 10px; padding: 2px 7px;
+    border-radius: 10px; margin-top: 6px;
+    background: var(--surface); color: var(--text-hint); border: 0.5px solid var(--border);
+  }
+  .mri-type-badge.voice { background: var(--gold-dim); color: var(--gold); border-color: rgba(232,201,106,0.2); }
+
+  /* ── BOTTOM NAV ── */
+  #bottom-nav {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    height: calc(56px + env(safe-area-inset-bottom, 0px));
+    background: rgba(10,14,22,0.96);
+    border-top: 0.5px solid var(--border);
+    display: flex; align-items: flex-start; padding-top: 8px;
+    z-index: 100;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+  .nav-item {
+    flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px;
+    cursor: pointer; padding: 4px 0;
+    transition: opacity 0.2s;
+  }
+  .nav-item:active { opacity: 0.6; }
+  .nav-item .ni-icon { font-size: 22px; transition: transform 0.2s; }
+  .nav-item .ni-label { font-size: 9px; color: var(--text-hint); letter-spacing: 0.05em; }
+  .nav-item.active .ni-icon { transform: scale(1.1); }
+  .nav-item.active .ni-label { color: var(--accent); }
+
+  /* content areas need bottom nav space */
+  .screen-content-area { padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px)); }
+
+  /* ── MICRO TOAST ── */
+  #toast {
+    position: fixed; bottom: calc(70px + env(safe-area-inset-bottom, 0px)); left: 50%;
+    transform: translateX(-50%) translateY(10px);
+    background: var(--card); border: 0.5px solid var(--border); border-radius: 20px;
+    padding: 9px 18px; font-size: 12px; color: var(--text-secondary);
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.3s, transform 0.3s;
+    white-space: nowrap; z-index: 200;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<!-- ──────────────── SCREEN: HOME ──────────────── -->
+<div id="screen-home" class="screen active">
+  <div class="safe-top"></div>
+  <div id="home-header">
+    <div class="home-location">서울 마포구 망원동</div>
+    <div class="home-greeting">오늘도 <span>잘 있었어?</span></div>
+  </div>
+  <div id="home-scroll" class="screen-content-area">
+    <div style="height:16px"></div>
+
+    <div class="nearby-banner" onclick="goScreen('discover')">
+      <div class="nearby-icon">🌼</div>
+      <div class="nearby-text">
+        <strong>이 근처에 묻힌 감정 3개</strong>
+        <span>140m 이내 • 지금 열어볼 수 있어요</span>
+      </div>
+      <div class="nearby-arrow">›</div>
+    </div>
+
+    <div class="section-label">내가 묻어둔 기록</div>
+
+    <div class="record-card" onclick="goScreen('myrecords')">
+      <div class="record-card-header">
+        <div class="record-place">📍 서울 연남동 골목</div>
+        <div class="record-date">3일 전</div>
+      </div>
+      <div class="record-content">비가 오는데 우산을 안 가져왔는데 오히려 좋았어. 젖어도 괜찮다는 기분.</div>
+      <div class="record-tags">
+        <span class="tag emotion">🌧️ 개운함</span>
+        <span class="tag">공개</span>
+      </div>
+    </div>
+
+    <div class="record-card" onclick="goScreen('myrecords')">
+      <div class="record-card-header">
+        <div class="record-place">📍 한강공원 난지지구</div>
+        <div class="record-date">1주 전</div>
+      </div>
+      <div class="record-content">🎙️ 음성 메모 · 1분 24초</div>
+      <div class="record-tags">
+        <span class="tag emotion">✨ 설렘</span>
+        <span class="tag">비공개</span>
+      </div>
+    </div>
+
+    <div class="record-card" onclick="goScreen('myrecords')">
+      <div class="record-card-header">
+        <div class="record-place">📍 광화문 광장</div>
+        <div class="record-date">2주 전</div>
+      </div>
+      <div class="record-content">퇴근 후 혼자 앉아 있었는데, 이 도시가 갑자기 낯설었다. 나쁘지 않은 낯섦.</div>
+      <div class="record-tags">
+        <span class="tag emotion">🌀 낯섦</span>
+        <span class="tag">공개</span>
+      </div>
+    </div>
+    <div style="height:8px"></div>
+  </div>
+
+  <div id="fab" onclick="goScreen('write')">🌱</div>
+</div>
+
+<!-- ──────────────── SCREEN: WRITE ──────────────── -->
+<div id="screen-write" class="screen slide-up">
+  <div class="safe-top"></div>
+  <div class="nav-bar">
+    <div class="nav-btn" onclick="goScreen('home')">←</div>
+    <div class="nav-title">감정 기록하기</div>
+    <div style="width:36px"></div>
+  </div>
+
+  <div class="write-mode-tabs">
+    <div class="write-tab active" id="tab-text" onclick="setWriteMode('text')">✏️ 글로 남기기</div>
+    <div class="write-tab" id="tab-voice" onclick="setWriteMode('voice')">🎙️ 음성으로 남기기</div>
+  </div>
+
+  <div id="write-body" class="screen-content-area" style="flex:1;overflow-y:auto;padding:0 20px;">
+    <!-- TEXT MODE -->
+    <div id="mode-text" class="active" style="display:flex;flex-direction:column;gap:14px;padding-bottom:20px;padding-top:4px;">
+      <div>
+        <div class="input-label" style="margin-bottom:6px">제목 <span style="color:var(--text-hint);font-size:10px;">(선택)</span></div>
+        <input class="text-input" type="text" placeholder="오늘의 제목" style="height:44px;padding:0 14px;">
+      </div>
+      <div>
+        <div class="input-label" style="margin-bottom:6px">지금 이 순간의 감정</div>
+        <textarea id="emotion-input" class="text-input" placeholder="지금 어떤 기분이야? 무슨 생각이 드는지 자유롭게 써봐..."></textarea>
+      </div>
+      <div>
+        <div class="input-label" style="margin-bottom:8px">감정 태그 <span style="color:var(--text-hint);font-size:10px;">(선택)</span></div>
+        <div class="emotion-tags-row">
+          <div class="etag" onclick="toggleEtag(this)">😊 기쁨</div>
+          <div class="etag" onclick="toggleEtag(this)">😢 슬픔</div>
+          <div class="etag" onclick="toggleEtag(this)">😌 평온</div>
+          <div class="etag" onclick="toggleEtag(this)">😤 답답함</div>
+          <div class="etag" onclick="toggleEtag(this)">✨ 설렘</div>
+          <div class="etag" onclick="toggleEtag(this)">🌧️ 우울</div>
+          <div class="etag" onclick="toggleEtag(this)">🌀 낯섦</div>
+          <div class="etag" onclick="toggleEtag(this)">🔥 열정</div>
+        </div>
+      </div>
+      <div>
+        <div class="input-label" style="margin-bottom:8px">공개 범위</div>
+        <div class="privacy-row">
+          <div class="privacy-label">이 기록을 공개할까?</div>
+          <div class="toggle-wrap">
+            <div class="toggle-opt on" id="priv-public" onclick="setPrivacy('public')">공개</div>
+            <div class="toggle-opt" id="priv-private" onclick="setPrivacy('private')">비공개</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- VOICE MODE -->
+    <div id="mode-voice" style="display:none;flex-direction:column;align-items:center;padding:30px 0 20px;gap:20px;">
+      <div id="voice-circle" class="voice-circle" onclick="toggleVoiceRecord()">🎙️</div>
+      <div class="voice-status" id="voice-status">탭해서 녹음 시작</div>
+      <div class="voice-time" id="voice-time">00:00</div>
+      <div class="voice-wave">
+        <div class="wave-bar"></div>
+        <div class="wave-bar"></div>
+        <div class="wave-bar"></div>
+        <div class="wave-bar"></div>
+        <div class="wave-bar"></div>
+      </div>
+      <div class="voice-controls" id="voice-controls" style="display:none">
+        <button class="voice-btn" onclick="playVoicePreview()">▶ 다시 듣기</button>
+        <button class="voice-btn danger" onclick="resetVoice()">🗑 다시 녹음</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="location-bar" style="margin-bottom:12px;">
+    <div class="loc-icon">📍</div>
+    <div class="loc-name">서울 마포구 망원동 어딘가</div>
+    <div class="loc-edit">편집</div>
+  </div>
+
+  <div class="submit-bar">
+    <button class="submit-btn" onclick="submitRecord()">기록 묻어두기 🌱</button>
+  </div>
+</div>
+
+<!-- ──────────────── SCREEN: BLOW ──────────────── -->
+<div id="screen-blow" class="screen slide-up">
+  <div class="safe-top"></div>
+  <div class="nav-bar" style="position:absolute;top:0;left:0;right:0;z-index:5;">
+    <div class="nav-btn" style="background:rgba(255,255,255,0.06)" onclick="goScreen('home')">←</div>
+    <div></div>
+    <div></div>
+  </div>
+
+  <div id="blow-canvas-wrap">
+    <div id="blow-status">기록이 여기에 묻혔어요</div>
+    <canvas id="blow-canvas" width="300" height="340"></canvas>
+    <div id="mic-level-wrap"><div id="mic-level-fill"></div></div>
+    <button id="blow-mic-btn" onclick="toggleBlowMic()">
+      <span id="blow-mic-icon">🎙️</span>
+      <span id="blow-mic-label">마이크로 불기</span>
+    </button>
+    <button id="blow-alt-btn" onclick="manualBlow()">손으로 직접 날리기</button>
+
+    <div id="blow-complete">
+      <div class="complete-icon">🌿</div>
+      <div class="complete-title">기록이 이 자리에<br>묻혔어요</div>
+      <div class="complete-sub">언젠가 이곳에 다시 오면<br>꺼내볼 수 있어요.</div>
+      <div class="complete-actions">
+        <button class="cta-btn" onclick="shareRecord()">공유</button>
+        <button class="cta-btn primary" onclick="goScreen('home')">홈으로</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ──────────────── SCREEN: DISCOVER ──────────────── -->
+<div id="screen-discover" class="screen">
+  <div class="safe-top"></div>
+  <div class="nav-bar">
+    <div class="nav-btn" onclick="goScreen('home')">←</div>
+    <div class="nav-title">이 근처의 감정들</div>
+    <div style="width:36px"></div>
+  </div>
+
+  <div class="map-preview">
+    <div class="map-bg"></div>
+    <div class="map-dot" style="left:50%;top:50%;transform:translate(-50%,-50%)"></div>
+    <div class="map-you-label" style="left:50%;transform:translateX(-50%)">나</div>
+    <div class="map-dot-other" style="left:35%;top:38%"></div>
+    <div class="map-dot-other" style="left:62%;top:55%"></div>
+    <div class="map-dot-other" style="left:55%;top:30%"></div>
+  </div>
+
+  <div class="discover-list screen-content-area">
+    <div class="section-label" style="margin-top:4px">140m 이내 공개 기록</div>
+
+    <div class="discover-card">
+      <div class="discover-card-header">
+        <div class="anon-name">민들레씨앗_4820</div>
+        <div class="discover-dist">38m</div>
+      </div>
+      <div class="discover-content">이 카페 앞에서 오래 서 있었어. 들어갈까 말까 고민하다가 결국 들어갔고, 오늘 가장 잘한 선택.</div>
+      <div class="discover-footer">
+        <div style="display:flex;gap:6px">
+          <span class="tag emotion">☕ 따뜻함</span>
+        </div>
+        <div class="discover-time">2시간 전</div>
+      </div>
+    </div>
+
+    <div class="discover-card">
+      <div class="discover-card-header">
+        <div class="anon-name">민들레씨앗_1173</div>
+        <div class="discover-dist">91m</div>
+      </div>
+      <div class="discover-content">🎙️ 음성 기록 · 43초</div>
+      <div class="discover-footer">
+        <div class="discover-time">어제</div>
+        <div class="discover-report" onclick="showToast('신고가 접수됐어요')">···</div>
+      </div>
+    </div>
+
+    <div class="discover-card">
+      <div class="discover-card-header">
+        <div class="anon-name">민들레씨앗_7742</div>
+        <div class="discover-dist">128m</div>
+      </div>
+      <div class="discover-content">이 공원 벤치에서 엄마한테 전화가 왔는데 괜히 안 받았어. 나중에 다시 전화해야지. 꼭.</div>
+      <div class="discover-footer">
+        <div style="display:flex;gap:6px">
+          <span class="tag emotion">🌙 그리움</span>
+        </div>
+        <div class="discover-time">3일 전</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ──────────────── SCREEN: MY RECORDS ──────────────── -->
+<div id="screen-myrecords" class="screen">
+  <div class="safe-top"></div>
+  <div class="nav-bar">
+    <div class="nav-btn" onclick="goScreen('home')">←</div>
+    <div class="nav-title">내 기록</div>
+    <div style="width:36px"></div>
+  </div>
+
+  <div class="my-records-list screen-content-area">
+    <div class="my-record-item">
+      <div class="mri-left">
+        <div class="mri-date-num">12</div>
+        <div class="mri-date-mon">6월</div>
+      </div>
+      <div class="mri-right">
+        <div class="mri-place">📍 연남동 골목</div>
+        <div class="mri-content">비가 오는데 우산을 안 가져왔는데 오히려 좋았어. 젖어도 괜찮다는 기분.</div>
+        <span class="mri-type-badge">✏️ 글</span>
+      </div>
+    </div>
+    <div class="my-record-item">
+      <div class="mri-left">
+        <div class="mri-date-num">8</div>
+        <div class="mri-date-mon">6월</div>
+      </div>
+      <div class="mri-right">
+        <div class="mri-place">📍 한강공원 난지지구</div>
+        <div class="mri-content">음성 메모 · 1분 24초</div>
+        <span class="mri-type-badge voice">🎙️ 음성</span>
+      </div>
+    </div>
+    <div class="my-record-item">
+      <div class="mri-left">
+        <div class="mri-date-num">1</div>
+        <div class="mri-date-mon">6월</div>
+      </div>
+      <div class="mri-right">
+        <div class="mri-place">📍 광화문 광장</div>
+        <div class="mri-content">퇴근 후 혼자 앉아 있었는데, 이 도시가 갑자기 낯설었다. 나쁘지 않은 낯섦.</div>
+        <span class="mri-type-badge">✏️ 글</span>
+      </div>
+    </div>
+    <div class="my-record-item">
+      <div class="mri-left">
+        <div class="mri-date-num">22</div>
+        <div class="mri-date-mon">5월</div>
+      </div>
+      <div class="mri-right">
+        <div class="mri-place">📍 을지로 3가</div>
+        <div class="mri-content">회의 끝나고 혼자 맥주 한 캔. 이상하게 뿌듯했다.</div>
+        <span class="mri-type-badge">✏️ 글</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ──────────────── BOTTOM NAV ──────────────── -->
+<div id="bottom-nav">
+  <div class="nav-item active" id="nav-home" onclick="goScreen('home');setActiveNav('home')">
+    <div class="ni-icon">🏠</div>
+    <div class="ni-label">홈</div>
+  </div>
+  <div class="nav-item" id="nav-discover" onclick="goScreen('discover');setActiveNav('discover')">
+    <div class="ni-icon">🗺️</div>
+    <div class="ni-label">주변</div>
+  </div>
+  <div class="nav-item" id="nav-write" onclick="goScreen('write');setActiveNav('write')">
+    <div class="ni-icon">🌱</div>
+    <div class="ni-label">기록</div>
+  </div>
+  <div class="nav-item" id="nav-myrecords" onclick="goScreen('myrecords');setActiveNav('myrecords')">
+    <div class="ni-icon">🌿</div>
+    <div class="ni-label">내 기록</div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<!-- ──────────────── SCRIPTS ──────────────── -->
+<script>
+/* ── SCREEN NAVIGATION ── */
+const SCREENS = {
+  home: 'screen-home',
+  write: 'screen-write',
+  blow: 'screen-blow',
+  discover: 'screen-discover',
+  myrecords: 'screen-myrecords',
+};
+const NAV_SCREENS = ['home', 'discover', 'write', 'myrecords'];
+let currentScreen = 'home';
+
+function goScreen(name) {
+  document.getElementById(SCREENS[currentScreen]).classList.remove('active');
+  document.getElementById(SCREENS[name]).classList.add('active');
+  currentScreen = name;
+  setActiveNav(name);
+
+  if (name === 'blow') {
+    setTimeout(() => initBlowCanvas(), 100);
+  }
+}
+
+function setActiveNav(name) {
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+  const navEl = document.getElementById('nav-' + name);
+  if (navEl) navEl.classList.add('active');
+
+  // hide nav on blow screen
+  document.getElementById('bottom-nav').style.display = (name === 'blow') ? 'none' : 'flex';
+}
+
+/* ── WRITE SCREEN ── */
+function setWriteMode(mode) {
+  document.getElementById('tab-text').classList.toggle('active', mode === 'text');
+  document.getElementById('tab-voice').classList.toggle('active', mode === 'voice');
+  const mText = document.getElementById('mode-text');
+  const mVoice = document.getElementById('mode-voice');
+  if (mode === 'text') {
+    mText.style.display = 'flex'; mText.classList.add('active');
+    mVoice.style.display = 'none'; mVoice.classList.remove('active');
+  } else {
+    mText.style.display = 'none'; mText.classList.remove('active');
+    mVoice.style.display = 'flex'; mVoice.classList.add('active');
+  }
+}
+
+function toggleEtag(el) { el.classList.toggle('selected'); }
+
+function setPrivacy(mode) {
+  document.getElementById('priv-public').classList.toggle('on', mode === 'public');
+  document.getElementById('priv-private').classList.toggle('on', mode === 'private');
+}
+
+let voiceRecording = false;
+let voiceTimer = null;
+let voiceSeconds = 0;
+let voiceDone = false;
+
+function toggleVoiceRecord() {
+  if (voiceDone) return;
+  const circle = document.getElementById('voice-circle');
+  if (!voiceRecording) {
+    voiceRecording = true;
+    circle.classList.add('recording');
+    document.getElementById('voice-status').textContent = '녹음 중... 탭해서 중지';
+    voiceSeconds = 0;
+    voiceTimer = setInterval(() => {
+      voiceSeconds++;
+      const m = String(Math.floor(voiceSeconds/60)).padStart(2,'0');
+      const s = String(voiceSeconds%60).padStart(2,'0');
+      document.getElementById('voice-time').textContent = m+':'+s;
+    }, 1000);
+  } else {
+    stopVoiceRecord();
+  }
+}
+
+function stopVoiceRecord() {
+  voiceRecording = false;
+  voiceDone = true;
+  clearInterval(voiceTimer);
+  const circle = document.getElementById('voice-circle');
+  circle.classList.remove('recording');
+  circle.textContent = '▶';
+  document.getElementById('voice-status').textContent = '녹음 완료';
+  document.getElementById('voice-controls').style.display = 'flex';
+}
+
+function playVoicePreview() { showToast('녹음 재생 중...'); }
+
+function resetVoice() {
+  voiceDone = false; voiceSeconds = 0;
+  const circle = document.getElementById('voice-circle');
+  circle.classList.remove('recording');
+  circle.textContent = '🎙️';
+  document.getElementById('voice-status').textContent = '탭해서 녹음 시작';
+  document.getElementById('voice-time').textContent = '00:00';
+  document.getElementById('voice-controls').style.display = 'none';
+}
+
+function submitRecord() {
+  goScreen('blow');
+}
+
+/* ── TOAST ── */
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+function shareRecord() { showToast('공유 링크가 복사됐어요'); }
+
+/* ──────────────────────────────────
+   DANDELION BLOW CANVAS
+────────────────────────────────── */
+const BW = 300, BH = 340;
+const STEM_X = BW/2, STEM_BASE = BH - 28, HEAD_Y = 90;
+let blowCtx, blowAnimId;
+let blowSeeds = [], floatingSeeds = [];
+let blowPhase = 'idle'; // idle | listening | blown | complete
+let blowIdleT = 0;
+
+// mic
+let blowAudioCtx = null, blowAnalyser = null, blowStream = null;
+let blowListening = false;
+let blowNoiseFloor = 0.015;
+let blowCalibrating = false;
+let blowCalibFrames = [];
+let blowFrameCount = 0;
+const BLOW_FRAMES = 9;
+let blowCooldown = false;
+
+function initBlowCanvas() {
+  const canvas = document.getElementById('blow-canvas');
+  blowCtx = canvas.getContext('2d');
+  blowPhase = 'idle';
+  blowSeeds = buildBlowSeeds();
+  floatingSeeds = [];
+  blowListening = false;
+  blowFrameCount = 0;
+  blowCooldown = false;
+  document.getElementById('blow-complete').classList.remove('show');
+  document.getElementById('blow-status').textContent = '기록이 여기에 묻혔어요';
+  document.getElementById('blow-mic-btn').classList.remove('on');
+  document.getElementById('blow-mic-label').textContent = '마이크로 불기';
+  document.getElementById('mic-level-fill').style.width = '0%';
+  cancelAnimationFrame(blowAnimId);
+  blowIdleLoop();
+}
+
+function buildBlowSeeds() {
+  const seeds = [];
+  const N = 32;
+  for (let i = 0; i < N; i++) {
+    const angle = (i / N) * Math.PI * 2;
+    const rBase = 46 + Math.sin(i*2.3)*4;
+    seeds.push({
+      angle,
+      r: rBase,
+      bx: STEM_X + Math.cos(angle) * rBase,
+      by: HEAD_Y + Math.sin(angle) * rBase * 0.52,
+      op: 1,
+    });
+  }
+  return seeds;
+}
+
+function drawBlowStem(sx, sy) {
+  blowCtx.save();
+  blowCtx.strokeStyle = 'rgba(130,190,120,0.55)';
+  blowCtx.lineWidth = 2.5;
+  blowCtx.lineCap = 'round';
+  blowCtx.beginPath();
+  blowCtx.moveTo(STEM_X + sx, STEM_BASE + sy);
+  blowCtx.bezierCurveTo(
+    STEM_X + sx - 12, STEM_BASE + sy - 70,
+    STEM_X + sx + 10, STEM_BASE + sy - 150,
+    STEM_X + sx, HEAD_Y + 32 + sy
+  );
+  blowCtx.stroke();
+  blowCtx.restore();
+}
+
+function drawBlowCenter(sx, sy) {
+  blowCtx.save();
+  blowCtx.beginPath();
+  blowCtx.arc(STEM_X + sx, HEAD_Y + sy, 8, 0, Math.PI*2);
+  blowCtx.fillStyle = 'rgba(240,210,70,0.88)';
+  blowCtx.fill();
+  blowCtx.restore();
+}
+
+function drawBlowSeed(s, sx, sy, opOverride) {
+  const op = opOverride !== undefined ? opOverride : s.op;
+  if (op <= 0) return;
+  blowCtx.save();
+  blowCtx.globalAlpha = op;
+  const bx = s.bx + sx, by = s.by + sy;
+  blowCtx.strokeStyle = 'rgba(210,228,255,0.85)';
+  blowCtx.lineWidth = 0.85;
+  blowCtx.lineCap = 'round';
+  blowCtx.beginPath();
+  blowCtx.moveTo(STEM_X + sx, HEAD_Y + sy);
+  blowCtx.lineTo(bx, by);
+  blowCtx.stroke();
+
+  // pappus (cotton tuft)
+  const fluffR = 5;
+  for (let f = 0; f < 7; f++) {
+    const fa = (f/7) * Math.PI*2;
+    blowCtx.beginPath();
+    blowCtx.arc(bx + Math.cos(fa)*fluffR, by + Math.sin(fa)*fluffR*0.5, 1.3, 0, Math.PI*2);
+    blowCtx.fillStyle = 'rgba(235,248,255,0.92)';
+    blowCtx.fill();
+  }
+  blowCtx.beginPath();
+  blowCtx.arc(bx, by, 2, 0, Math.PI*2);
+  blowCtx.fillStyle = '#fff';
+  blowCtx.fill();
+  blowCtx.restore();
+}
+
+class FlyingSeed {
+  constructor(s, intensity) {
+    this.x = s.bx;
+    this.y = s.by;
+    this.vx = (Math.random()-0.3)*(2.5 + intensity*4);
+    this.vy = -(1.8 + Math.random()*(2.5 + intensity*2.5));
+    this.op = 1;
+    this.life = 1;
+    this.decay = 0.006 + Math.random()*0.005;
+    this.wobble = Math.random()*Math.PI*2;
+    this.wSpeed = 0.035 + Math.random()*0.04;
+    this.delay = Math.random()*0.5;
+    this.active = false;
+    this.t = 0;
+  }
+  update() {
+    this.t += 0.016;
+    if (this.t < this.delay) return;
+    this.active = true;
+    this.wobble += this.wSpeed;
+    this.x += this.vx + Math.sin(this.wobble)*0.7;
+    this.y += this.vy;
+    this.vy += 0.012;
+    this.vx *= 0.993;
+    this.life -= this.decay;
+    this.op = Math.max(0, this.life);
+  }
+  draw() {
+    if (!this.active || this.op <= 0) return;
+    blowCtx.save();
+    blowCtx.globalAlpha = this.op;
+    blowCtx.strokeStyle = 'rgba(215,232,255,0.88)';
+    blowCtx.lineWidth = 0.7;
+    blowCtx.beginPath();
+    blowCtx.moveTo(this.x, this.y);
+    blowCtx.lineTo(this.x - this.vx*3.5, this.y + 8);
+    blowCtx.stroke();
+    for (let f = 0; f < 5; f++) {
+      const fa = (f/5)*Math.PI*2;
+      blowCtx.beginPath();
+      blowCtx.arc(this.x+Math.cos(fa)*3.5, this.y+Math.sin(fa)*3.5*0.5, 1.1, 0, Math.PI*2);
+      blowCtx.fillStyle = 'rgba(240,250,255,0.9)';
+      blowCtx.fill();
+    }
+    blowCtx.beginPath();
+    blowCtx.arc(this.x, this.y, 1.6, 0, Math.PI*2);
+    blowCtx.fillStyle = '#fff';
+    blowCtx.fill();
+    blowCtx.restore();
+  }
+}
+
+function blowIdleLoop() {
+  if (blowPhase !== 'idle' && blowPhase !== 'listening') return;
+  blowIdleT += 0.022;
+  const sx = Math.sin(blowIdleT*0.65)*3 + Math.sin(blowIdleT*1.4)*1.5;
+  const sy = Math.sin(blowIdleT*0.9+1)*2;
+  blowCtx.clearRect(0, 0, BW, BH);
+  drawBlowStem(sx, sy);
+  blowSeeds.forEach(s => drawBlowSeed(s, sx, sy, undefined));
+  drawBlowCenter(sx, sy);
+  blowAnimId = requestAnimationFrame(blowIdleLoop);
+}
+
+let blowProgress = 0;
+let blowIntensity = 0.5;
+
+function blowAnimLoop() {
+  if (blowPhase !== 'blown') return;
+  blowIdleT += 0.03;
+  blowProgress += 0.016;
+  const sx = Math.sin(blowIdleT)*( 3 + blowIntensity*5 );
+  const sy = Math.sin(blowIdleT*1.2)*2;
+
+  const ops = blowSeeds.map((s, i) => {
+    const d = (i / blowSeeds.length) * 0.45;
+    return Math.max(0, 1 - (blowProgress - d) * (1.8 + blowIntensity*0.8));
+  });
+
+  blowCtx.clearRect(0, 0, BW, BH);
+  drawBlowStem(sx, sy);
+  blowSeeds.forEach((s,i) => drawBlowSeed(s, sx, sy, ops[i]));
+  drawBlowCenter(sx, sy);
+  floatingSeeds.forEach(fs => { fs.update(); fs.draw(); });
+
+  const allGone = ops.every(o => o <= 0);
+  const fsAlive = floatingSeeds.some(fs => fs.op > 0.04);
+
+  if (allGone && !fsAlive) { showBlowComplete(); return; }
+  blowAnimId = requestAnimationFrame(blowAnimLoop);
+}
+
+function triggerBlow(intensity) {
+  if (blowPhase === 'blown' || blowPhase === 'complete') return;
+  stopBlowMic();
+  blowPhase = 'blown';
+  blowIntensity = Math.min(1, intensity);
+  blowProgress = 0;
+  floatingSeeds = blowSeeds.map(s => new FlyingSeed(s, blowIntensity));
+  document.getElementById('blow-status').textContent = '홀씨가 날아가고 있어요...';
+  cancelAnimationFrame(blowAnimId);
+  blowAnimLoop();
+}
+
+function showBlowComplete() {
+  blowPhase = 'complete';
+  blowCtx.clearRect(0, 0, BW, BH);
+  drawBlowStem(0, 0);
+  drawBlowCenter(0, 0);
+  document.getElementById('blow-status').textContent = '';
+  document.getElementById('blow-complete').classList.add('show');
+  document.getElementById('blow-mic-btn').style.display = 'none';
+  document.getElementById('blow-alt-btn').style.display = 'none';
+  document.getElementById('mic-level-wrap').style.display = 'none';
+}
+
+function manualBlow() { triggerBlow(0.5); }
+
+async function toggleBlowMic() {
+  if (blowListening) { stopBlowMic(); return; }
+  if (blowPhase === 'blown' || blowPhase === 'complete') return;
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+    blowStream = stream;
+    blowAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const src = blowAudioCtx.createMediaStreamSource(stream);
+    blowAnalyser = blowAudioCtx.createAnalyser();
+    blowAnalyser.fftSize = 512;
+    blowAnalyser.smoothingTimeConstant = 0.45;
+    src.connect(blowAnalyser);
+    blowListening = true;
+    blowPhase = 'listening';
+    blowCalibrating = true;
+    blowCalibFrames = [];
+    document.getElementById('blow-mic-btn').classList.add('on');
+    document.getElementById('blow-mic-label').textContent = '소음 측정 중...';
+    document.getElementById('blow-status').textContent = '환경 소음을 측정하고 있어요';
+    setTimeout(finishBlowCalib, 1300);
+    blowMicLoop();
+  } catch(e) {
+    document.getElementById('blow-status').textContent = '마이크 권한이 필요해요 — 손으로 직접 날려보세요';
+  }
+}
+
+function finishBlowCalib() {
+  if (!blowCalibFrames.length) return;
+  blowCalibFrames.sort((a,b)=>a-b);
+  const cut = Math.floor(blowCalibFrames.length*0.9);
+  const trimmed = blowCalibFrames.slice(0, cut);
+  blowNoiseFloor = trimmed.reduce((a,b)=>a+b,0)/trimmed.length || 0.015;
+  blowCalibrating = false;
+  document.getElementById('blow-mic-label').textContent = '듣는 중...';
+  document.getElementById('blow-status').textContent = '후~ 하고 불어보세요 🌬️';
+}
+
+function stopBlowMic() {
+  blowListening = false;
+  blowCalibrating = false;
+  if (blowStream) blowStream.getTracks().forEach(t => t.stop());
+  if (blowAudioCtx) { blowAudioCtx.close().catch(()=>{}); }
+  blowAnalyser = null; blowStream = null; blowAudioCtx = null;
+  document.getElementById('blow-mic-btn').classList.remove('on');
+  document.getElementById('blow-mic-label').textContent = '마이크로 불기';
+  document.getElementById('mic-level-fill').style.width = '0%';
+  if (blowPhase === 'listening') blowPhase = 'idle';
+}
+
+function blowMicLoop() {
+  if (!blowListening || !blowAnalyser) return;
+  const buf = new Uint8Array(blowAnalyser.fftSize);
+  blowAnalyser.getByteTimeDomainData(buf);
+  let sum = 0;
+  for (let i = 0; i < buf.length; i++) {
+    const v = (buf[i]-128)/128;
+    sum += v*v;
+  }
+  const rms = Math.sqrt(sum/buf.length);
+  const pct = Math.min(100, (rms/0.18)*100);
+  document.getElementById('mic-level-fill').style.width = pct+'%';
+
+  if (blowCalibrating) { blowCalibFrames.push(rms); requestAnimationFrame(blowMicLoop); return; }
+
+  const thresh = Math.max(0.038, blowNoiseFloor * 2.6);
+  if (rms > thresh && !blowCooldown) {
+    blowFrameCount++;
+    if (blowFrameCount >= BLOW_FRAMES) {
+      blowCooldown = true;
+      const intensity = Math.min(1, (rms - blowNoiseFloor)/0.09);
+      triggerBlow(intensity);
+      return;
+    }
+  } else {
+    blowFrameCount = Math.max(0, blowFrameCount - 1);
+  }
+  requestAnimationFrame(blowMicLoop);
+}
+</script>
+</body>
+</html>
