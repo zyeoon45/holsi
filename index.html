@@ -274,11 +274,6 @@
   .loc-name { font-size: 13px; color: var(--text-secondary); flex: 1; }
   .loc-edit { font-size: 11px; color: var(--accent); cursor: pointer; }
 
-  /* submit btn */
-  .submit-bar {
-    padding: 12px 20px; flex-shrink: 0;
-    border-top: 0.5px solid var(--border-soft);
-  }
   .submit-btn {
     width: 100%; padding: 16px;
     background: var(--accent); border: none; border-radius: 14px;
@@ -572,9 +567,9 @@
     <div class="write-tab" id="tab-voice" onclick="setWriteMode('voice')">🎙️ 음성으로 남기기</div>
   </div>
 
-  <div id="write-body" class="screen-content-area" style="flex:1;overflow-y:auto;padding:0 20px;">
+  <div id="write-body" style="flex:1;overflow-y:auto;padding:0 20px;scrollbar-width:none;">
     <!-- TEXT MODE -->
-    <div id="mode-text" class="active" style="display:flex;flex-direction:column;gap:14px;padding-bottom:20px;padding-top:4px;">
+    <div id="mode-text" class="active" style="display:flex;flex-direction:column;gap:14px;padding-top:4px;">
       <div>
         <div class="input-label" style="margin-bottom:6px">제목 <span style="color:var(--text-hint);font-size:10px;">(선택)</span></div>
         <input class="text-input" type="text" placeholder="오늘의 제목" style="height:44px;padding:0 14px;">
@@ -606,6 +601,17 @@
           </div>
         </div>
       </div>
+
+      <!-- location + submit 버튼을 스크롤 영역 안으로 이동 -->
+      <div class="location-bar" style="margin:4px 0 0;">
+        <div class="loc-icon">📍</div>
+        <div class="loc-name">서울 마포구 망원동 어딘가</div>
+        <div class="loc-edit">편집</div>
+      </div>
+
+      <div style="padding-bottom: calc(env(safe-area-inset-bottom, 16px) + 72px);">
+        <button class="submit-btn" onclick="submitRecord()">기록 묻어두기 🌱</button>
+      </div>
     </div>
 
     <!-- VOICE MODE -->
@@ -624,17 +630,18 @@
         <button class="voice-btn" onclick="playVoicePreview()">▶ 다시 듣기</button>
         <button class="voice-btn danger" onclick="resetVoice()">🗑 다시 녹음</button>
       </div>
+
+      <!-- voice mode 에서도 위치 + 버튼 -->
+      <div class="location-bar" style="width:100%;margin-top:8px;">
+        <div class="loc-icon">📍</div>
+        <div class="loc-name">서울 마포구 망원동 어딘가</div>
+        <div class="loc-edit">편집</div>
+      </div>
+
+      <div style="width:100%;padding-bottom:calc(env(safe-area-inset-bottom, 16px) + 72px);">
+        <button class="submit-btn" onclick="submitRecord()">기록 묻어두기 🌱</button>
+      </div>
     </div>
-  </div>
-
-  <div class="location-bar" style="margin-bottom:12px;">
-    <div class="loc-icon">📍</div>
-    <div class="loc-name">서울 마포구 망원동 어딘가</div>
-    <div class="loc-edit">편집</div>
-  </div>
-
-  <div class="submit-bar">
-    <button class="submit-btn" onclick="submitRecord()">기록 묻어두기 🌱</button>
   </div>
 </div>
 
